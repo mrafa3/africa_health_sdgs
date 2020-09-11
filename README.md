@@ -19,4 +19,8 @@ Code for mapping SDG3 analysis. Need to assess data dependency to allow the code
 ## SDG3_cluster.Rmd  
 Code for cluster analysis of African health outcomes. Includes knn analysis of cluster graduation (using forecasts from IFs) and some exploratory PCA.
 
+## SDG3_distance.Rmd  
+Code for developing a distance index for African countries toward SDG3 achievement.  
+
+
 
