@@ -1,0 +1,60 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+(df_ART <- readxl::read_xlsx('.//data/unaids_data_27mar2019.xlsx', sheet = 'HIV+ receiving ART') %>% 
+   gather(year, value, 2:9) %>% 
+   mutate(year = as.numeric(year)) %>% 
+   separate(value, into = c('value', 'conf_interval'), sep = ' ') %>% 
+   mutate(value = ifelse(value == '...', NA, as.numeric(value))) %>% 
+   select(Country, year, value) %>% 
+   spread(year, value))
+```
+
+```{r}
+(df_inc_prev_ratio <- readxl::read_xlsx('.//data/unaids_data_27mar2019.xlsx', sheet = 'Incidenceprevalence ratio') %>% 
+   gather(year, value, 2:29) %>% 
+   mutate(year = as.numeric(year)) %>% 
+   separate(value, into = c('value', 'conf_interval'), sep = ' ') %>% 
+   mutate(value = ifelse(value == '...', NA, as.numeric(value))) %>% 
+   select(Country, year, value) %>% 
+   spread(year, value))
+```
+
+```{r}
+(df_inc_mort_ratio <- readxl::read_xlsx('.//data/unaids_data_27mar2019.xlsx', sheet = 'Incidencemortality ratio') %>% 
+   gather(year, value, 2:29) %>% 
+   mutate(year = as.numeric(year)) %>% 
+   separate(value, into = c('value', 'conf_interval'), sep = ' ') %>% 
+   mutate(value = ifelse(value == '...', NA, as.numeric(value))) %>% 
+   select(Country, year, value) %>% 
+   spread(year, value))
+
+```
+
+
+
+```{r}
+writexl::write_xlsx(x = list(ART = df_ART, INC_MORT_RAT = df_inc_mort_ratio, INC_PREV_RAT = df_inc_prev_ratio), 
+                    path = './/output_tables/unaids_data_for_ifs_28mar2019.xlsx')
+```
+
+
+# Analysis
+
+```{r}
+(df_translation <- readxl::read_xlsx('.//data/unaids_data_for_ifs_28mar2019_v2.xlsx', sheet = 'translation'))
+```
+
+```{r}
+(df_inc_mort_ratio_2 <- df_ART %>% 
+  left_join(x=.,
+            y=df_translation,
+            by=c('Country' = 'UNAIDS Countries')))
+```
