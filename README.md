@@ -22,5 +22,6 @@ Code for cluster analysis of African health outcomes. Includes knn analysis of c
 ## SDG3_distance.Rmd  
 Code for developing a distance index for African countries toward SDG3 achievement.  
 
-
+## SDG_distance_percent.Rmd  
+Code for evaluating and visualizing distance as a percent (instead of as a standard deviation score).  
 
