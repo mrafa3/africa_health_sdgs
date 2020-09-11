@@ -1,0 +1,298 @@
+---
+title: "African Development Bank: Improving the Maternal Mortality Forecast from IFs"
+output: html_notebook
+---
+
+```{r setup, include=TRUE, message=FALSE}
+library(tidyverse)
+library(extrafont)
+library(zoo)
+library(imputeTS)
+```
+
+```{r theme, include=TRUE}
+pardee.theme <- theme(
+  plot.title = element_text(family="Avenir-Book", color="black", face="plain", size=17, hjust=0), 
+  plot.subtitle = element_text(family="Avenir-Book", color="black", size=15, hjust=0), 
+  axis.title = element_text(family="Avenir-Book", color="black", face="plain", size=14), 
+  axis.text.y = element_text(family="Avenir-Book", size=16), 
+  axis.text.x = element_text(angle = 90, hjust = 1, size=13), 
+  plot.caption = element_text(family="Avenir-Book", color="black", size=13), 
+  panel.background =  element_rect(fill = "#F7F7F7", colour = NA), 
+  panel.grid.major = element_line(colour = "grey90", size = 0.5),
+  panel.grid.minor = element_line(colour = "grey93", size = 0.5),
+  panel.border = element_rect(colour = "black", size = 0.5, fill=NA, linetype = 1),
+  legend.title=element_blank(), 
+  legend.text = element_text(family="Avenir-Book", color="black", size=14, hjust=0),
+  legend.spacing.x = unit(.3, 'cm'), 
+  legend.position = 'bottom',
+  strip.text = element_text(family="Avenir-Book", color="black", face="plain", size=16),
+  strip.background = element_rect(fill = "white"))
+```
+
+```{r nepad_groups, include=TRUE}
+nepad_groups <- read_csv('.//data/nepad_groups.csv')
+```
+
+```{r read_data, include=TRUE}
+df_maternal <- read_csv('.//data/maternal_mort.csv') %>% 
+  gather(year, val, 3:28) %>% 
+  mutate(year = as.numeric(year)) %>% 
+  spread(var, val) %>% 
+  rename('enelecaccess_rural_perc' = `ENELECACCESS%RURAL`,
+         'healthexp_tot_perc_gdp' = `HEALTHEXPTOT%GDP`) %>% 
+  group_by(country)
+```
+
+```{r}
+df_maternal$TFRMEDUNPD <- na.interpolation(df_maternal$TFRMEDUNPD, option = 'linear')
+
+df_maternal <- df_maternal %>% 
+  mutate(log_GDPPC = log(GDP2011PCPPP),
+         log_TFR = log(TFRMEDUNPD),
+         year_since_1990 = year - 1990)
+```
+
+```{r}
+df_maternal <- df_maternal %>% 
+  left_join(x=.,
+            y=nepad_groups,
+            by=c('country' = 'Country'))
+```
+
+```{r}
+lm <- lm(MATERNALMORTALITYRATIO ~ log_TFR + log_GDPPC + enelecaccess_rural_perc + healthexp_tot_perc_gdp, 
+         data=df_maternal)
+
+summary(lm)
+```
+
+
+```{r}
+lm_func_current <- function(df) {
+  lm(MATERNALMORTALITYRATIO ~ log_TFR + log_GDPPC, data=df)
+}
+
+lm_func_update <- function(df) {
+  lm(MATERNALMORTALITYRATIO ~ log_TFR + log_GDPPC + healthexp_tot_perc_gdp, data=df)
+}
+```
+
+## Current model from Kanishka 
+
+
+
+```{r}
+df_nest_model <- df_maternal %>% 
+  ungroup() %>% 
+  nest(-sub_group) %>% 
+  mutate(model = map(data, lm_func_current)) %>% 
+  mutate(glance = map(model, broom::glance),
+         tidy = map(model, broom::tidy, 
+                    conf.int = TRUE),
+         augment = map2(model, data, broom::augment_columns, type.predict="response"))
+```
+
+
+```{r}
+df_nest_model %>% 
+  unnest(glance, .drop=TRUE) %>% 
+  arrange(-adj.r.squared)
+```
+
+```{r}
+df_nest_model %>% 
+  unnest(tidy, .drop=TRUE) %>% 
+  #filter(term == '(Intercept)') %>% 
+  #filter(term == 'log_TFR') %>% 
+  #filter(term == 'log_GDPPC') %>% 
+  filter(term == 'enelecaccess_rural_perc')
+```
+
+```{r}
+df_nest_model %>% 
+  unnest(augment, .drop=TRUE) %>% 
+  filter(sub_group == 'Sub-Saharan Africa') %>% 
+  arrange(-.resid)
+```
+
+```{r}
+(unnest_tidy_current <- df_nest_model %>% 
+  unnest(tidy, .drop=TRUE) %>% 
+  filter(sub_group == 'Sub-Saharan Africa'))
+```
+
+
+```{r}
+(unnest_augment_current <- df_nest_model %>% 
+  unnest(augment, .drop=TRUE) %>% 
+  filter(sub_group == 'Sub-Saharan Africa'))
+```
+
+```{r}
+unnest_augment_current %>% 
+  left_join(x=.,
+            y=unnest_tidy_current,
+            by='sub_group') %>% 
+  filter(term == 'log_GDPPC') %>% 
+  
+```
+
+```{r fig.height=6.2}
+unnest_augment_current %>% 
+  filter(country == 'Sierra Leone') %>% 
+  ggplot(.,
+         aes(x=year_since_1990,
+             y=.fitted)) + 
+  geom_line(aes(group=country)) + 
+  geom_line(aes()) + 
+  pardee.theme
+```
+
+
+```{r fig.height=6.2}
+df_nest_model %>% 
+  unnest(augment, .drop=TRUE) %>% 
+  filter(sub_group == 'Sub-Saharan Africa') %>% 
+  #arrange(-.resid)
+  ggplot(.,
+         aes(x=year_since_1990,
+             y=.resid)) + 
+  geom_line(aes(group=country)) + 
+  geom_hline(yintercept = 0, color = 'red', size=2) + 
+  ggrepel::geom_text_repel(data=. %>% filter(year_since_1990 == 1,
+                                             abs(.resid) > 500),
+                           aes(label = country), 
+                           force = 15, family = 'Avenir-Book', fontface = 'bold', size = 4.5) + 
+  pardee.theme
+```
+
+```{r}
+df_maternal %>% 
+  filter(country != 'Sierra Leone' & sub_group == 'Sub-Saharan Africa')
+```
+
+## Possible maternal mortality update 
+
+
+```{r}
+df_nest_model_2 <- df_maternal %>% 
+  ungroup() %>% 
+  nest(-sub_group) %>% 
+  mutate(model = map(data, lm_func_update)) %>% 
+  mutate(glance = map(model, broom::glance),
+         tidy = map(model, broom::tidy, 
+                    conf.int = TRUE),
+         augment = map2(model, data, broom::augment_columns, type.predict="response"))
+```
+
+
+```{r}
+df_nest_model_2 %>% 
+  unnest(glance, .drop=TRUE) %>% 
+  arrange(-r.squared)
+```
+
+Removing Sierra Leone from the observation set yields the following improvements:
+
+*  With Sierra Leone, `healthexp_tot_perc_gdp` has a positive valence, which doesn't make much sense. Without Sierra Leone, it's negative.
+*  Sierra Leone is such a significant outlier, that it doesn't make sense to allow it to have this much leverage over the model.  
+
+
+
+```{r}
+df_nest_model_2 %>% 
+  unnest(tidy, .drop=TRUE) %>% 
+  filter(term == 'healthexp_tot_perc_gdp')
+```
+
+```{r fig.height=6.2}
+df_maternal %>% 
+  #filter(sub_group == 'South Asia') %>% 
+  ggplot(.,
+         aes(x=healthexp_tot_perc_gdp,
+             y=MATERNALMORTALITYRATIO)) + 
+  geom_point() + 
+  ggrepel::geom_text_repel(data=. %>% filter(MATERNALMORTALITYRATIO >500 & 
+                                               healthexp_tot_perc_gdp > 10),
+                           aes(label = country)) + 
+  pardee.theme
+```
+
+
+```{r}
+lm_2 <- lm(MATERNALMORTALITYRATIO ~ log_TFR + log_GDPPC + healthexp_tot_perc_gdp, 
+           #data=df_maternal)
+           data=df_maternal %>% filter(!country %in% c('Sierra Leone')))
+         #data=df_maternal %>% filter(country != 'Sierra Leone' & sub_group == 'Sub-Saharan Africa'))
+         #data=df_maternal %>% filter(sub_group == 'Sub-Saharan Africa'))
+
+summary(lm_2)
+```
+
+
+# Testing 
+
+```{r}
+lm_func_test <- function(df) {
+  lm(MATERNALMORTALITYRATIO ~ log_GDPPC, data=df)
+}
+```
+
+
+```{r}
+df_nest_model <- df_maternal %>% 
+  ungroup() %>% 
+  nest(-sub_group) %>% 
+  mutate(model = map(data, lm_func_test)) %>% 
+  mutate(glance = map(model, broom::glance),
+         tidy = map(model, broom::tidy, 
+                    conf.int = TRUE),
+         augment = map2(model, data, broom::augment_columns))
+```
+
+```{r}
+(unnest_tidy_test <- df_nest_model %>% 
+  unnest(tidy, .drop=TRUE))
+```
+
+```{r}
+(unnest_augment_test <- df_nest_model %>% 
+  unnest(augment, .drop=TRUE))
+```
+
+```{r}
+(unnest_augment_test <- unnest_augment_test %>% 
+  filter(sub_group == 'Sub-Saharan Africa') %>% 
+  arrange(-.fitted) %>% 
+  mutate(.resid.squared = .std.resid ^ 2))
+```
+
+
+```{r fig.height=6.2}
+unnest_augment_test %>% 
+  filter(sub_group == 'Sub-Saharan Africa') %>% 
+  #arrange(-.fitted)
+  left_join(x=.,
+            y=unnest_tidy_test %>% filter(term == 'log_GDPPC'), 
+            by='sub_group') %>% 
+  ggplot(.) + 
+  geom_line(aes(x=log_GDPPC,
+                y=.fitted)) + 
+  geom_line(aes(x=log_GDPPC,
+                y=.fitted - conf.low), color = 'red') + 
+  geom_line(aes(x=log_GDPPC,
+                y=.fitted + conf.high), color = 'green') + 
+  pardee.theme
+```
+
+```{r fig.height=6.2}
+df_maternal %>% 
+  filter(sub_group == 'Sub-Saharan Africa') %>% 
+  ggplot(.,
+         aes(x=log_GDPPC,
+             y=MATERNALMORTALITYRATIO)) + 
+  geom_smooth(method = 'lm') + 
+  pardee.theme
+```
+

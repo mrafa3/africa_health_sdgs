@@ -1,0 +1,265 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r setup, include=TRUE, message=FALSE}
+library(tidyverse)
+library(writexl)            #for writing objects to tabs in single Excel
+library(openxlsx)
+library(mosaic)
+library(psych)
+library(extrafont)
+library(factoextra)
+```
+
+```{r}
+nepad_group <- read_csv('.//data/nepad_groups.csv') %>% 
+  mutate(afr_union_other = ifelse(afr_union == 'African Union', 'African Union', 'Other'))
+```
+
+```{r}
+afdb_cols <- c('African Union' = "#d95f02", 'Other' = 'lightgray')
+```
+
+
+# Data exploration
+
+```{r}
+df_dalys <- readxl::read_xlsx('.//data/DALYs.xlsx') %>% 
+  gather(year, val, 6:41) %>% 
+  mutate(year = as.numeric(year))
+```
+
+```{r viz_dalys, include=TRUE, fig.height=6.2}
+df_dalys %>% 
+  filter(var != 'DALYsPC') %>% 
+  ggplot(.) + 
+  geom_line(aes(x=year,
+                y=val,
+                color=var,
+                group=var), size=1.75) + 
+  facet_wrap(~country) + 
+  pardee.theme
+```
+
+```{r}
+cds <- c('OthCommumDis', 'Diabetes', 'AIDS', 'Diarrhea', 'Malaria', 'RespInfec')
+ncds <- c('MaligNeoPl', 'CardioVasc', 'Digestive', 'Respiratory', 'OtherNonComm', 'MentalHealth')
+inj <- c('TrafficAcc', 'UnIntInj', 'IntInj')
+```
+
+```{r}
+df_dalys <- df_dalys %>% 
+  mutate(dis_cat = ifelse(dimension %in% cds, 'CDs',
+                   ifelse(dimension %in% ncds, 'NCDs',
+                   ifelse(dimension %in% inj, 'Injuries', 'Other'))))
+```
+
+
+```{r viz_dalys_2, include=TRUE, fig.height=6.2}
+df_dalys %>% 
+  filter(var == 'DALYsPC') %>% 
+  mutate(spotlight_dim = ifelse(dimension == 'AIDS', 'spotlight', 'other')) %>% 
+  ggplot(.) + 
+  geom_line(aes(x=year,
+                y=val,
+                color=spotlight_dim,
+                group=dimension), size=1.75) + 
+  facet_grid(dis_cat~country) + 
+  scale_color_manual(values = c('spotlight' = 'red',
+                                'other' = 'gray60'),
+                     labels = c('spotlight' = 'AIDS',
+                                'other' = 'Other')) + 
+  pardee.theme
+  
+```
+
+
+# Relative risk of premature death: CDs and NCDs
+
+
+```{r}
+prob_mort_cat <- readxl::read_xlsx('.//data/prob_mort_cat.xlsx') %>% 
+  gather(year, death_prob, 5:90) %>% 
+  mutate(year = as.numeric(year)) %>% 
+  #these countries/territories do not have data
+  filter(country != 'Hong Kong' & country != 'Kosovo') %>% 
+  left_join(x=.,
+            y=nepad_group,
+            by=c('country' = 'Country_2')) %>% 
+  #from IFs, the scale is chances (probability) per thousand of death, 
+  #so converting it to a more understandable probability scale (0-1)
+  mutate(death_prob = death_prob / 1000) %>% 
+  spread(death_cat, death_prob)
+```
+
+```{r fig.height=9, fig.width=12}
+prob_mort_cat %>% 
+  filter(year == 2015 | year == 2030) %>% 
+  ggplot(.,
+         aes(x=TotComDis,
+             y=TotNonComDis)) + 
+  geom_point(aes(color=afr_union_other), size=2) + 
+  geom_abline(slope = 1, intercept = 0, linetype = 'dashed') + 
+  ggtitle('Probability of dying prematurely: communicable vs. non-communicable causes',
+          subtitle = 'IFs Base Case v7.38') + 
+  #ggrepel::geom_text_repel(data=. %>% filter(TotComDis > TotNonComDis),
+   #                        aes(label = country)) + 
+  facet_grid(year ~ dim) + 
+  labs(x='CDs: Probability of premature death',
+       y='NCDs: Probability of premature death') + 
+  scale_color_manual(values = afdb_cols) + 
+  pardee.theme
+```
+
+```{r fig.height=6.2, fig.width=12}
+prob_mort_cat %>% 
+  gather(death_cat, death_prob, 9:10) %>% 
+  filter(year == 2030 | year == 2015,
+         death_cat == 'TotNonComDis') %>% 
+  spread(dim, death_prob) %>% 
+  ggplot(.,
+         aes(x=Female,
+             y=Male)) + 
+  ggtitle('Probability of dying from NCDs by gender, 2015 and 2030',
+          subtitle = 'IFs Base Case v7.38') + 
+  geom_point(aes(color=afr_union_other), size=2) + 
+  geom_abline(slope = 1, intercept = 0, linetype = 'dashed') + 
+  #ggrepel::geom_text_repel(data=. %>% filter(Female > Male),
+   #                        aes(label = country)) + 
+  facet_wrap(~year) + 
+  labs(x='Female: probability of premature death from CDs',
+       y='Male: probability of premature death from CDs') + 
+  scale_color_manual(values = afdb_cols) + 
+  pardee.theme
+```
+
+
+# Clustering 
+
+```{r}
+df_mort <- readxl::read_xlsx(path = './/data/mortality_by_type.xlsx') %>% 
+  left_join(x=.,
+            y=nepad_group,
+            by='Country')
+
+```
+
+```{r}
+(df_mort_standard <- df_mort %>% 
+  gather(age_cohort, death_rate, 5:23))
+```
+
+```{r}
+(df_mort_standard_afr <- df_mort_standard %>% 
+  filter(afr_union == 'African Union'))
+```
+
+```{r}
+df_mort_standard_afr
+  group_by(Country, sex, Cause, age_cohort) %>% 
+  mutate(death_rate = scale(death_rate))
+```
+
+
+```{r}
+df_mort_standard_afr$z <- ave(df_mort_standard_afr$death_rate, df_mort_standard_afr$age_cohort, FUN=scale)
+```
+
+
+```{r}
+df_mort_standard_afr %>% 
+  mutate(age_sex_cause = paste(age_cohort, sex, Cause, sep = "_")) %>% 
+  select(-c(death_rate, age_cohort, sex, Cause, CauseID)) %>% 
+  spread(age_sex_cause, z)
+```
+
+
+```{r}
+(df_mort_standard_afr <- df_mort_standard_afr %>% 
+  mutate(age_sex_cause = paste(age_cohort, sex, Cause, sep = "_")) %>% 
+  select(-c(death_rate, age_cohort, sex, Cause, CauseID)) %>% 
+  spread(age_sex_cause, z))
+```
+
+```{r}
+df_mort_standard_afr %>% select(-c(1:5))
+```
+
+
+```{r}
+#library(NbClust)
+#(nbclust_eval <- NbClust(df_mort_standard_afr %>% select(-c(1:5)), 
+                            #diss = diss_matrix,
+                            #distance = NULL, 
+                            #min.nc = 3,
+                            #max.nc = 10, 
+                            #method = "kmeans",
+                            #index = "all"))
+```
+
+
+```{r}
+kmeans_mort <- kmeans(df_mort_standard_afr %>% select(-c(1:5)), 5)
+
+kmeans_mort
+```
+
+```{r}
+data.frame(kmeans_mort$centers)
+```
+
+
+```{r}
+(df_cluster_5_results <- kmeans_mort %>% 
+  broom::augment(df_mort_standard_afr) %>% 
+  ungroup() %>% 
+  select(.cluster, everything()) %>% 
+  mutate(.cluster = as.character(.cluster)))
+
+#cbind(df_mort_standard_afr, kmeans_mort$cluster) %>% 
+  #gather(age_sex_cause, z_death_rate, 4:573) %>% 
+  #rename(cluster_number = 'kmeans_mort$cluster') %>% 
+  #arrange(cluster_number)
+```
+
+```{r}
+df_cluster_5_results %>% 
+  filter(.cluster == '4')
+```
+
+
+```{r fig.height=6.2}
+fviz_cluster(kmeans_mort, 
+             data=df_mort_standard_afr %>% select(-c(1:5)),
+             stand = FALSE, 
+             ellipse.type = "convex",
+             palette = "jco") + 
+  pardee.theme
+```
+
+
+```{r}
+kmeans_mort$cluster <- factor(kmeans_mort$cluster)
+
+centers_mort <- as.data.frame(kmeans_mort$centers) %>% 
+  rownames_to_column(., var = 'cluster_number') %>% 
+  gather(age_sex_cause, z_death_rate, 2:571) %>% 
+  separate(age_sex_cause, into = c('age_cohort', 'sex', 'Cause'), sep = "_") %>% 
+  spread(age_cohort, z_death_rate)
+```
+
+
+```{r}
+centers_mort %>% 
+  arrange(cluster_number) %>% 
+  select(1:3, 'p1', 'p2', 'p3', 'p4', 'p5') %>% 
+  filter(Cause == 'Cardiac')
+```
+
+```{r}
+df_mort %>% 
+  arrange(-p1)
+```

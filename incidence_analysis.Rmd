@@ -1,0 +1,124 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(extrafont)
+```
+
+```{r}
+read_sheets <- seq(from = 1, to = 9, by = 1)
+```
+
+```{r}
+list_ihme_df <- lapply(read_sheets, function(i) readxl::read_xlsx(path = './/data/ihme_data_28mar2019.xlsx', 
+                                                                  sheet=i))
+
+list_ihme_df <- setNames(list_ihme_df, paste0("df_", 1:9))
+
+list2env(list_ihme_df, envir=.GlobalEnv)
+
+df_ihme <- bind_rows(df_1, df_2, df_3, df_4, df_5, df_6, df_7, df_8, df_9)
+```
+
+```{r}
+head(df_ihme)
+```
+
+```{r}
+(df_ihme <- df_ihme %>% 
+  gather(year, val, 4:31) %>% 
+  mutate(year = as.numeric(year)) %>% 
+  spread(variable, val))
+```
+
+```{r}
+regions <- read_csv('.//data/nepad_groups.csv')
+```
+
+```{r}
+(df_ihme <- df_ihme %>% 
+  left_join(x=.,
+            y=regions,
+            by='Country') %>% 
+   select(Country, sub_group, year, 4:13))
+```
+
+```{r}
+(df_ihme <- df_ihme %>% 
+  mutate(hiv_incidence_prevalence_ratio_ihme = ifelse(SeriesIHMEPrevHIV == 0, NA, 
+                                                       round(SeriesIHMEInciHIV / SeriesIHMEPrevHIV, 3)),
+         hiv_incidence_mortality_ratio_ihme = ifelse(SeriesIHMEDthsHIV == 0, NA,
+                                                     round(SeriesIHMEInciHIV / SeriesIHMEDthsHIV,3)),
+         malar_incidence_prevalence_ratio_ihme = ifelse(SeriesIHMEPrevMalaria == 0, NA,
+                                                        round(SeriesIHMEInciMalaria / 
+                                                                SeriesIHMEPrevMalaria, 3)), 
+         malar_incidence_mortality_ratio_ihme = ifelse(SeriesIHMEDthsMalar == 0, NA, 
+                                                       round(SeriesIHMEInciMalaria / SeriesIHMEDthsMalar, 3))))
+```
+
+```{r fig.height=6.2}
+df_ihme %>% 
+  ggplot(.) + 
+  geom_line(aes(x=year,
+                y=hiv_incidence_prevalence_ratio_ihme,
+                color=sub_group,
+                group=Country), size=1.5) + 
+  facet_wrap(~sub_group)
+```
+
+```{r fig.height=6.2}
+df_ihme %>% 
+  ggplot(.) + 
+  geom_line(aes(x=year,
+                y=hiv_incidence_mortality_ratio_ihme,
+                color=sub_group,
+                group=Country), size=1.5) + 
+  facet_wrap(~sub_group)
+```
+
+```{r fig.height=6.2}
+df_ihme %>% 
+  ggplot(.) + 
+  geom_line(aes(x=year,
+                y=malar_incidence_prevalence_ratio_ihme,
+                color=sub_group,
+                group=Country), size=1.5) + 
+  facet_wrap(~sub_group)
+```
+
+```{r fig.height=6.2}
+df_ihme %>% 
+  ggplot(.) + 
+  geom_line(aes(x=year,
+                y=malar_incidence_mortality_ratio_ihme,
+                color=sub_group,
+                group=Country), size=1.5) + 
+  facet_wrap(~sub_group)
+```
+
+```{r}
+(ifs_data_for_CDs_models <- read_csv('.//data/ifs_data_for_CDs_models.csv') %>% 
+   select(2, 1, 6:31) %>% 
+   gather(year, val, 3:28) %>% 
+   mutate(year = as.numeric(year)) %>% 
+   spread(variable, val))
+```
+
+
+```{r}
+(df_ihme_2 <- df_ihme %>% 
+  left_join(x=.,
+            y=ifs_data_for_CDs_models,
+            by=c('Country', 'year')))
+```
+
+```{r}
+(lm_1 <- lm(hiv_incidence_prevalence_ratio_ihme ~ GDPPCP + EDYRSAG25, data = df_ihme_2))
+```
+
+```{r}
+summary(lm_1)
+```

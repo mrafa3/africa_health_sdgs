@@ -1,0 +1,378 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(extrafont)
+library(factoextra)
+library(NbClust)
+library(ggsci)              #for jco color palette
+library(psych)              #for PCA
+library(class)              #for kNN
+#library(caret)             #backup kNN function
+```
+
+```{r theme, include=TRUE}
+pardee.theme <- theme(
+  plot.title = element_text(color="black", face="plain", size=17, hjust=0), 
+  plot.subtitle = element_text(color="black", size=15, hjust=0), 
+  axis.title = element_text(color="black", face="plain", size=14), 
+  axis.text.y = element_text(size=16), 
+  axis.text.x = element_text(angle = 90, hjust = 1, size=13), 
+  plot.caption = element_text(color="black", size=13), 
+  panel.background =  element_rect(fill = "#F7F7F7", colour = NA), 
+  panel.grid.major = element_line(colour = "grey90", size = 0.5),
+  panel.grid.minor = element_line(colour = "grey93", size = 0.5),
+  panel.border = element_rect(colour = "black", size = 0.5, fill=NA, linetype = 1),
+  legend.title=element_blank(), 
+  legend.text = element_text(color="black", size=14, hjust=0),
+  legend.spacing.x = unit(.5, 'cm'), 
+  legend.position = 'bottom',
+  strip.text = element_text(color="black", face="plain", size=16),
+  strip.background = element_rect(fill = "white"))
+```
+
+```{r}
+(df <- readxl::read_xlsx('.//data/cluster_health_afr_14mar2019.xlsx') %>% 
+   gather(year, val, 6:56) %>% 
+   filter(year == '2019') %>% 
+   select(1:2, 7) %>% 
+   group_by(variable) %>% 
+   mutate(val = scale(val)) %>% 
+   ungroup() %>% 
+   spread(variable, val))
+```
+
+```{r include=FALSE}
+(df <- df %>% 
+  #'CLPC' (2)
+  #'DR_IntInj' (8)
+  #'DR_UnIntInj' (17)
+  #'HLSMOKING' (18)
+  #'HLSTUNT' (19)
+  #'LIFEXP_Male' (21)
+  #'LIFEXP_Female' (22)
+  select(-c(18, 19)))
+
+#removing HLSMOKING and HLSTUNTING produces similar results (notable difference is Botswana moves to transitional cluster from HIV-burden cluster)
+#removing CLPC in addition to the above variables is not good, because without CLPC, Sudan moves to the NCD cluster
+#removing DR_IntInj -- has strong leverage on the clusters -- if also have HLSMOKING and HLSTUNTING removed. Only removing DR_IntInj produces reasonable and similar results to the original clusters
+#removing DR_IntInj and HLSMOKING together produces junk clusters
+#removing DR_IntInj and HLSTUNTING together produces reasonably similar results
+#removing DR_IntInj, HLSTUNTING, and CLPC produces junk clusters
+#with the above three removed, we need to keep DR_UnIntInj -- otherwise, junk clusters
+
+```
+
+```{r}
+(nbclust_eval <- NbClust(df %>% select(-1), 
+                            #diss = diss_matrix,
+                            #distance = NULL, 
+                            min.nc = 3,
+                            max.nc = 10, 
+                         #should assess with other method
+                            method = "complete",
+                            index = "all"))
+```
+
+```{r}
+fviz_nbclust(df %>% select(-1), FUNcluster = kmeans, method='wss')
+```
+
+
+We may choose to remove `HLSMOKING`. However, will then move Botswana into the "Middling Health" category from the "HIV Burden". Not sure if that is what we'd prefer. I think you can make a good case either way.
+
+```{r}
+set.seed(1234)
+kmeans_sdg3 <- kmeans(df %>% select(-c(1)), 4)
+
+kmeans_sdg3
+```
+
+```{r}
+(df_cluster_4_results <- kmeans_sdg3 %>% 
+  broom::augment(df) %>% 
+  ungroup() %>% 
+  select(.cluster, everything()) %>% 
+  mutate(.cluster = as.character(.cluster)))
+```
+
+```{r}
+(afr_regional_groups <- read_csv('.//data/afr_regional_groups.csv') %>% 
+   filter(type == 'Regional'))
+```
+
+```{r}
+(df_cluster_4_results <- df_cluster_4_results %>% 
+  left_join(x=.,
+            y=afr_regional_groups %>% select(-type),
+            by='country') %>% 
+  select(.cluster, country, group, everything()))
+```
+
+```{r include=FALSE}
+df_cluster_4_results %>% 
+  write.csv(., './/output_tables/df_cluster_4_results.csv')
+```
+
+```{r}
+(kmeans_sdg3_centers <- as.data.frame(kmeans_sdg3$centers))
+```
+
+
+```{r fig.height=6.2}
+(kmeans_viz <- fviz_cluster(kmeans_sdg3, 
+             data=df %>% select(-1),
+             stand = FALSE, 
+             ellipse.type = "convex",
+             palette = "jco") + 
+  pardee.theme)
+```
+
+```{r}
+spot_vars <- c('DR_AIDS', 'MATMORTRATIO', 'DR_CardioVasc', 'HLSTUNT',
+               'DR_IntInj', 'DR_Malaria', 'LIFEXP_Female', 'DR_Diabetes', 'DR_Respiratory')
+```
+
+
+
+```{r fig.height=5.5, fig.width=9.5}
+df_cluster_4_results %>% 
+  gather(variable, val, 4:23) %>% 
+  filter(variable %in% spot_vars) %>% 
+  mutate(variable = recode(variable,
+                           'DR_AIDS' = 'AIDS death rate',
+                           'DR_CardioVasc' = 'Cardiovascular death rate',
+                           #'MATMORTRATIO' = 'Maternal mortality rate',
+                           'DR_Respiratory' = 'Respiratory mortality rate', 
+                           'HLSTUNT' = 'Stunting rate',
+                           'DR_IntInj' = 'Intentional injury death rate', 
+                           'DR_Malaria' = 'Malaria death rate', 
+                           'LIFEXP_Female' = 'Female life expectancy', 
+                           'DR_Diabetes' = 'Diabetes death rate'),
+         clust_name = case_when(.cluster == '1' ~ 'CDs',
+                                .cluster == '2' ~ 'NCDs',
+                                .cluster == '3' ~ 'NCDs & HIV',
+                                .cluster == '4' ~ 'Double Burden')) %>% 
+  ggplot(., 
+         aes(x=.cluster,
+             y=val,
+             fill=.cluster)) + 
+  geom_violin() + 
+  geom_jitter(width = .2, height = .1) + 
+  facet_wrap(~variable, 
+             nrow = 2,
+             scales = 'free',
+             labeller = label_wrap_gen()) + 
+  ggtitle('',
+          subtitle = 'Each dot represents an African country within its cluster') + 
+  labs(y='z-score',
+       x='Cluster') + 
+  pardee.theme + 
+  scale_fill_jco() + 
+  #scale_fill_manual(values = cluster_fill) + 
+  theme(strip.text = element_text(size = 12),
+        strip.text.x = element_text(margin = margin(.25,0,.25,0, "cm")),
+        legend.position = 'none')
+```
+
+```{r test, fig.height=28, fig.width=10, include=FALSE}
+df_cluster_4_results %>% 
+  gather(variable, val, 4:23) %>% 
+  ggplot(.) + 
+  geom_boxplot(aes(x=.cluster,
+                   y=val,
+                   fill=.cluster)) + 
+  facet_wrap(~variable, ncol = 2) + 
+  pardee.theme
+```
+
+```{r clust_1_members, include=TRUE}
+df_cluster_4_results %>% 
+  filter(.cluster == '1') %>% 
+  group_by(.cluster, group) %>% 
+  summarise(count = n())
+```
+
+```{r}
+df_cluster_4_results %>% 
+  filter(.cluster == '4')
+```
+
+```{r df_label_help, include=TRUE}
+(df_label_help <- df %>% 
+  select(1) %>%
+  rownames_to_column())
+```
+
+```{r}
+spotlight <- c('Rwanda', 'Congo, Democratic Republic of', 'Kenya', 'Algeria', 'South Africa', 
+               'Swaziland', 'Niger', 'SierraLeo', 'Liberia', 'Botswana', 'Seychelles', 'Mauritius',
+               'Egypt', 'Ethiopia', 'Sudan', 'Zimbabwe', "Cote d'Ivoire", 'Cameroon', 'Nigeria',
+               'Chad', 'Somalia', 'Lesotho', 'Tunisia', 'Namibia', 'Cape Verde', 'Senegal',
+               'GuineaBiss', 'Central AfR', 'Uganda', 'Algeria', 'Libya', 'Morocco', 'Sudan South',
+               'Mauritania', 'Comoros', 'Madagascar')
+```
+
+```{r}
+(kmeans_viz_data <- kmeans_viz$data %>% 
+  left_join(x=.,
+            y=df_label_help,
+            by=c('name' = 'rowname')))
+```
+
+```{r}
+(kmeans_viz_data <- kmeans_viz_data %>% 
+  mutate(clust_name = case_when(cluster == '1' ~ 'CDs',
+                                cluster == '2' ~ 'NCDs',
+                                cluster == '3' ~ 'NCDs & HIV',
+                                cluster == '4' ~ 'Double Burden'),
+         africa = '1'))
+```
+
+```{r fig.height=7}
+kmeans_viz_data %>% 
+  ggplot(aes(x=x,
+             y=y,
+             color=clust_name,
+             shape=clust_name)) + 
+  geom_point(size=3) + 
+  ggrepel::geom_text_repel(data=. %>% filter(country %in% spotlight),
+                           aes(label = country), force = 10, size=4) + 
+  #ggtitle('K-means') + 
+  labs(x=expression('' %<-% '  Higher NCD burden, higher life expectancy    -    Higher CD burden, lower life expectancy  ' %->% ''),
+       y=expression('' %<-% '  Higher burden from AIDS, respiratory and injury deaths')) + 
+  scale_color_jco() + 
+  pardee.theme
+```
+
+
+
+
+
+# kNN analysis -- do countries graduate to different clusters over time?  
+
+```{r}
+test_dist <- rnorm(19)
+```
+
+```{r}
+clust_knn <- df_cluster_4_results$.cluster
+```
+
+```{r}
+(test_knn <- class::knn(train = df_cluster_4_results %>% select(-c(1:4)),
+                       test = test_dist,
+                       k = 3, 
+                       cl = clust_knn,
+                       prob = TRUE))
+```
+
+## Five clusters 
+
+```{r}
+set.seed(1234)
+kmeans_5_sdg3 <- kmeans(df %>% select(-1), 5)
+
+kmeans_5_sdg3
+```
+
+
+```{r}
+(df_cluster_5_results <- kmeans_5_sdg3 %>% 
+  broom::augment(df) %>% 
+  ungroup() %>% 
+  select(.cluster, everything()) %>% 
+  mutate(.cluster = as.character(.cluster)) %>% 
+  left_join(x=.,
+            y=afr_regional_groups %>% select(-type),
+            by='country') %>% 
+  select(.cluster, country, group, everything()))
+```
+
+```{r}
+(kmeans_5_sdg3_centers <- as.data.frame(kmeans_5_sdg3$centers))
+```
+
+```{r fig.height=6.2}
+fviz_cluster(kmeans_5_sdg3, 
+             data=df %>% select(-1),
+             stand = FALSE, 
+             ellipse.type = "convex",
+             palette = "jco") + 
+  pardee.theme
+```
+
+# PCA 
+
+```{r}
+cor_df <- cor(df %>% select(-1))
+```
+
+```{r fig.height=6.2}
+GGally::ggcorr(df %>% select(-1), 
+               hjust=1.1, layout.exp=10, size=3, label_alpha=.3)
+```
+
+```{r screeplot_mar18_3, echo=FALSE, fig.height=6.2}
+#Produce scree plot of PCA results and identify PCs > 1
+PCAscree <- fa.parallel(cor_df, fa="pc", n.iter=100, show.legend = TRUE, 
+                       main="Scree Plot of Principal Components")
+abline(h=1)
+```
+
+```{r PCAtest, echo=FALSE}
+#Show PCA results
+PCAtest<- principal(cor_df, nfactors=2, rotate="none", 
+                      residuals = FALSE, scores = TRUE)
+PCAtest
+```
+
+```{r}
+PCAtest$weights
+```
+
+
+```{r}
+test <- prcomp(cor_df)
+summary(test)
+```
+
+```{r}
+showMethods(fviz_cluster)
+```
+
+# PAM 
+
+```{r}
+library(fpc)
+```
+
+```{r}
+pamk(df %>% select(-1), krange = 4:8, criterion = 'asw', scaling = FALSE)
+```
+
+```{r}
+library(cluster)
+```
+
+```{r}
+(df_pam_4 <- pam(df %>% select(-1), 4))
+```
+
+```{r}
+(pam_viz_conflict_4 <- fviz_cluster(df_pam_4,
+             #kmeans_conflict_4, 
+             data=df %>% select(-c(1)),
+             stand = TRUE, 
+             #repel = TRUE, 
+             show.clust.cent = TRUE,
+             ellipse.type = "convex",
+             palette = "jco") + 
+  #ggrepel::geom_text_repel(data=data=df_conflict_unscaled,
+   #                        aes()) +
+  ggtitle('PAM') + 
+  pardee.theme)
+```
