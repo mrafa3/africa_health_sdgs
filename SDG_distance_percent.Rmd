@@ -3,10 +3,24 @@ title: "R Notebook"
 output: html_notebook
 ---
 
-```{r}
+```{r setup, include=TRUE, message=FALSE}
 library(tidyverse)
 library(extrafont)
 library(scales)
+```
+
+```{r adb_groups, include=TRUE}
+adb_groups <- c('Africa', 'Afr - CDs Clust', 'Afr - Double Burden', 'Afr - NCDs & HIV', 'Afr - NCDs Clust')
+```
+
+```{r targ_cols, include=TRUE}
+targ_cols <- c('AIDS' = "#E69F00", 
+               'CHILDDTHR' = "#56B4E9",
+               'Malaria' = "#009E73",
+               'MATMORTRATIO' = "#F0E442",
+               'NEONATMOR' = "#0072B2",
+               'NonCommun' = "#D55E00",
+               'TrafficAcc' = "#CC79A7")
 ```
 
 ```{r message=FALSE}
@@ -59,20 +73,19 @@ df <- read_csv('.//data/ADB_results_20june2019.csv')
                             round((target_year_value - target) / target * 100, 3))))
 ```
 
+
+
 ```{r}
-adb_groups <- c('Africa', 'Afr - CDs Clust', 'Afr - Double Burden', 'Afr - NCDs & HIV', 'Afr - NCDs Clust')
+#commenting this out until I integrate that from SDG3_cluster.Rmd
+#(adb_clusters <- kmeans_viz_data %>% 
+ # select(country, clust_name))
 ```
 
 ```{r}
-(adb_clusters <- kmeans_viz_data %>% 
-  select(country, clust_name))
-```
-
-```{r}
-(df <- df %>% 
-  left_join(x=.,
-            y=adb_clusters,
-            by='country'))
+#(df <- df %>% 
+ # left_join(x=.,
+  #          y=adb_clusters,
+   #         by='country'))
 ```
 
 
@@ -101,7 +114,7 @@ df %>%
     #           color='gray60', size=1) + 
   labs(x='Percent distance from achievement\n',
        y='') + 
-  pardee.theme.minimal + 
+  pardee.theme + 
   theme(legend.position = 'top') + 
   scale_color_manual(values = targ_cols,
                      labels = c('MATMORTRATIO' = 'Maternal Mortality',
