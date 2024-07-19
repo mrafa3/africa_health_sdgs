@@ -20,136 +20,81 @@ excl_groups <- c('Afr - Fragile Health', 'Afr - Middling Health', 'Afr - HIV Bur
 
 ```{r}
 (df_master <- readxl::read_xlsx('.//data/IFs_results_02apr2019.xlsx', sheet='update_10apr2019') %>% 
-   filter(scenario == '00CP_adj_ADB'))
+   filter(scenario == '00CP_adj_ADB') %>% 
+   select(1:5, `2015`, `2020`, `2030`, `2063`))
 
 (df_master_UHC <- readxl::read_xlsx('.//data/IFs_results_02apr2019.xlsx', sheet='update_10apr2019') %>% 
-   filter(scenario == '01UHC_africa'))
-
+   filter(scenario == '01UHC_africa') %>% 
+    select(1:5, `2015`, `2020`, `2030`, `2063`))
 ```
 
-```{r}
-(df_master_2 <- df_master %>% select(1:5, `2015`, `2020`, `2030`, `2063`))
-```
-
-```{r}
-(df_maternal_2 <- df_master_2 %>% 
+```{r df_maternal, include=TRUE}
+(df_maternal <- df_master %>% 
   filter(variable == 'MATMORTRATIO') %>% 
   select(variable, country, `2030`) %>% 
   bind_rows(., df_sdg_targets %>% filter(variable == 'MATMORTRATIO')) %>% 
-  mutate(africa = 1))
-```
-
-```{r}
-(df_maternal_3 <- df_maternal_2 %>% 
+  mutate(africa = 1) %>% 
   mutate(scale_2030 = scale(`2030`)) %>% 
   mutate(distance = ifelse(`2030` <= 70, 0, min(scale_2030) - scale_2030)) %>% 
   arrange(distance))
-
-df_maternal_2 %>% 
-  mutate(mean_ = mean(`2030`),
-         stdev_ = sd(`2030`)) %>% 
-  slice(1) %>% 
-  select(variable, mean_, stdev_)
 ```
 
-```{r}
-df_master_2 %>% 
-  mutate(variable = ifelse(unit %in% c('TrafficAcc', 'AIDS', 'Malaria', 'NonCommun'), 
-                           as.character(unit), 
-                           as.character(variable))) 
-```
-
-
-```{r}
-(df_neonatal_2 <- df_master_2 %>% 
+```{r df_neonatal, include=TRUE}
+(df_neonatal <- df_master %>% 
    filter(variable == 'NEONATMOR') %>% 
   select(variable, country, `2030`) %>% 
   bind_rows(., df_sdg_targets %>% filter(variable == 'NEONATMOR')) %>% 
-   mutate(africa = 1))
-```
-
-```{r}
-(df_neonatal_3 <- df_neonatal_2 %>% 
+  mutate(africa = 1) %>% 
   mutate(scale_2030 = scale(`2030`)) %>% 
   mutate(distance = ifelse(`2030` <= 12, 0, min(scale_2030) - scale_2030)) %>% 
   arrange(distance))
 ```
 
-
-```{r}
-(df_u5mr_2 <- df_master_2 %>% 
+```{r df_u5mr, include=TRUE}
+(df_u5mr <- df_master %>% 
    filter(variable == 'CHILDDTHR') %>% 
   select(variable, country, `2030`) %>% 
   bind_rows(., df_sdg_targets %>% filter(variable == 'CHILDDTHR')) %>% 
-   mutate(africa = 1))
-```
-
-```{r}
-(df_u5mr_3 <- df_u5mr_2 %>% 
+  mutate(africa = 1) %>% 
   mutate(scale_2030 = scale(`2030`)) %>% 
   mutate(distance = ifelse(`2030` <= 25, 0, min(scale_2030) - scale_2030)) %>% 
   arrange(distance))
 ```
 
-
-
-```{r}
-(df_ncd_2 <- df_master_2 %>% 
+```{r df_ncd, include=TRUE}
+(df_ncd <- df_master %>% 
   filter(unit == 'NonCommun') %>% 
   select(unit, country, `2015`, `2030`) %>% 
    mutate(ratio_2030 = `2030` / `2015`) %>% 
    select(-c(`2015`, `2030`)) %>% 
   rename('variable' = 'unit',
          '2030' = 'ratio_2030') %>% 
-  bind_rows(., df_sdg_targets %>% filter(variable == 'NonCommun')))
-```
-
-```{r}
-(df_ncd_3 <- df_ncd_2 %>% 
+  bind_rows(., df_sdg_targets %>% filter(variable == 'NonCommun')) %>% 
   mutate(scale_2030 = scale(`2030`)) %>% 
   mutate(distance = ifelse(`2030` <= 2/3, 0, min(scale_2030) - scale_2030)) %>% 
   arrange(distance))
 ```
 
-```{r}
-(df_traff_2 <- df_master_2 %>% 
+```{r df_traff, include=TRUE}
+(df_traff <- df_master %>% 
   filter(variable == 'DeathRate',
          unit == 'TrafficAcc') %>% 
   mutate(ratio_2020 = `2020` / `2015`) %>% 
   select(unit, country, ratio_2020) %>% 
   rename('variable' = 'unit',
          '2020' = 'ratio_2020') %>% 
-   bind_rows(., df_sdg_targets %>% filter(variable == 'TrafficAcc') %>% rename('2020' = '2030')))
-```
-
-```{r}
-(df_traff_3 <- df_traff_2 %>% 
+  bind_rows(., df_sdg_targets %>% filter(variable == 'TrafficAcc') %>% rename('2020' = '2030')) %>% 
   mutate(scale_2020 = scale(`2020`)) %>% 
   mutate(distance = ifelse(`2020` <= .5, 0, min(scale_2020) - scale_2020)) %>% 
   arrange(distance))
 ```
 
-
-```{r}
+```{r df_sdg_targets_2, include=TRUE}
 (df_sdg_targets_2 <- read_csv('.//data/sdg_targets_2.csv'))
 ```
 
-
-```{r}
-(df_sdg_targets_3 <- df_sdg_targets %>% 
-  mutate(targ_dist_2030 = `2030`) %>% 
-  select(-`2030`))
-```
-
-```{r}
-(df_sdg_targets_traff <- df_sdg_targets %>% 
-  filter(variable == 'TrafficAcc') %>% 
-  rename('targ_dist_2020' = '2030'))
-```
-
-
-```{r}
-(df_scaled_dist_results <- df_master_2 %>% 
+```{r df_scaled_dist_results, include=TRUE}
+(df_scaled_dist_results <- df_master %>% 
   filter(variable %in% c('MATMORTRATIO', 'NEONATMOR', 'CHILDDTHR') | 
          unit %in% c('AIDS', 'Malaria')) %>% 
   mutate(variable = ifelse(unit %in% c('AIDS', 'Malaria'), as.character(unit), as.character(variable))) %>% 
@@ -161,25 +106,21 @@ df_master_2 %>%
   mutate_at(vars(AIDS:NEONATMOR), funs(scale(.))))
 ```
 
-```{r}
+```{r target_df, include=TRUE, echo=FALSE}
 target_df <- data.frame('TARGET', 2/3, .5)
 
 names(target_df) <- c('country', 'NonCommun', 'TrafficAcc')
-
-target_df
 ```
-
 
 ```{r}
 target_df_2 <- data.frame('TARGET', .001, .001)
 
 names(target_df_2) <- c('country', 'AIDS', 'Malaria')
-
 ```
 
 
 ```{r}
-(df_scaled_dist_results_rel_targets <- df_master_2 %>% 
+(df_scaled_dist_results_rel_targets <- df_master %>% 
   filter(unit %in% c('TrafficAcc', 'NonCommun')) %>% 
   select(unit, country, `2015`, `2020`, `2030`) %>% 
   rename('variable' = 'unit') %>% 
@@ -190,8 +131,8 @@ names(target_df_2) <- c('country', 'AIDS', 'Malaria')
   mutate_at(vars(NonCommun:TrafficAcc), funs(scale(.))))
 ```
 
-```{r pardee.theme.minimal, include=TRUE}
-pardee.theme.minimal <- theme(
+```{r my.theme.minimal, include=TRUE}
+my.theme.minimal <- theme(
   plot.title = element_text(color="black", face="plain", size=10, hjust=0), 
   plot.subtitle = element_text(color="black", size=15, hjust=0), 
   axis.title = element_text(color="black", face="plain", size=14), 
@@ -211,12 +152,6 @@ pardee.theme.minimal <- theme(
   strip.background = element_rect(fill = "white"))
 ```
 
-
-```{r}
-df_scaled_dist_results
-```
-
-
 ```{r fig.height=6.2}
 (demo_plot <- df_scaled_dist_results %>% 
   ggplot(.) + 
@@ -233,8 +168,8 @@ df_scaled_dist_results
   ggtitle("Maternal mortality, Benin's distance value is .97 (-.12 less -1.09)") + 
   annotate("text", x=-.6, y=.12, label = 'Target (-1.09)', color='green3', size=5.5) + 
   annotate("text", x=.35, y=.12, label = 'Benin (-.12)', color='black', size=5.5) + 
-  scale_y_continuous(labels = 'percent') + 
-  pardee.theme.minimal + 
+  #scale_y_continuous(labels = 'percent') + 
+  my.theme.minimal + 
    theme(plot.title = element_text(size = 12)))
 ```
 
@@ -288,7 +223,6 @@ dist_plot_df$country <- as.character(dist_plot_df$country)
 dist_plot_df$country <- as.factor(dist_plot_df$country)
 
 dist_plot_df$country <- factor(dist_plot_df$country, levels=cntry_order)
-
 ```
 
 
@@ -325,7 +259,7 @@ targ_cols <- c('AIDS' = "#E69F00",
 ```
 
 ```{r}
-(test_2 <- dist_plot_df_2 %>% 
+(seg_length <- dist_plot_df_2 %>% 
   mutate(achieve = ifelse(val <= target, 1, 0)) %>% 
   filter(achieve == 0) %>% 
   group_by(country) %>% 
@@ -345,12 +279,12 @@ dist_plot_df_2 %>%
   geom_point(aes(color=var), 
              #height=.25, width=0,
              alpha=.5, size=8) + 
-  geom_segment(data=test_2,
+  geom_segment(data=seg_length,
                aes(x=min_val, xend=max_val, yend=country),
-               color='gray60', size=1) + 
+               color='gray60', linewidth=1) + 
   labs(x='',
        y='') + 
-  pardee.theme.minimal + 
+  my.theme.minimal + 
   theme(legend.position = 'top') + 
   scale_color_manual(values = targ_cols,
                      labels = c('MATMORTRATIO' = 'Maternal Mortality',
