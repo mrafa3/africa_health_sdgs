@@ -6,11 +6,12 @@ output: html_notebook
 # Setup
 
 ```{r setup, include=TRUE, message=FALSE, warning=FALSE}
-library(cowplot)
+#library(cowplot)
+library(tidyverse)
 library(sf)
 #library(rnaturalearth)
 library(maps)
-library(viridis)
+#library(viridis)
 library(patchwork)
 ```
 
@@ -48,7 +49,7 @@ map.theme <- theme(text = element_text(family = "Arial", color = "black"),
                    axis.text = element_blank(),
                    axis.title = element_blank(),
                    axis.ticks = element_blank(),
-                   legend.position = "left", 
+                   legend.position = "inside", 
                    legend.key.size = unit(.7, "cm"),
                    legend.direction = "horizontal",
                    legend.background = element_rect(fill="white"))
@@ -57,8 +58,8 @@ map.theme.small <- theme(text = element_text(family = "Arial", color = "black"),
                    panel.background = element_rect(fill = "white"),
                    plot.background = element_rect(fill = "white"),
                    panel.grid = element_blank(),
-                   plot.title = element_text(size = 11),
-                   plot.subtitle = element_text(size = 10),
+                   plot.title = element_text(size = 8, face = 'bold', hjust = 0.5),
+                   plot.subtitle = element_text(size = 8),
                    axis.text = element_blank(),
                    axis.title = element_blank(),
                    axis.ticks = element_blank(),
@@ -92,22 +93,20 @@ joined.world.map <- left_join(x=map.world,
                              by=c('region' = 'country'))
 ```
 
-```{r fig.height=6.2}
+```{r l_map_clust, include=TRUE, fig.height=6.2, fig.width=10, fig.align='center'}
 (l_map_clust <- joined.world.map %>% 
   filter(africa == '1') %>% 
   ggplot(.) +
   geom_polygon(aes(x = long, y = lat, group = group, fill = clust_name), color="gray90") +
   geom_polygon(data=. %>% filter(region == 'Western Sahara'),
                aes(x = long, y = lat, group = group), fill = "gray90", color="gray90") +
-  #ggtitle('2018') + 
   coord_map(xlim = c(-30, 60),
             ylim = c(39, -37)) + 
   labs(fill = '') + 
-  #scale_fill_viridis_(na.value = 'lightgray') + 
   scale_fill_jco() + 
   map.theme + 
   guides(fill=guide_legend(nrow=2, byrow=TRUE)) + 
-  theme(legend.position.inside = c(.04, .3)))
+  theme(legend.position.inside = c(.2, .3)))
 ```
 
 ```{r fig.width=2, fig.height=2}
@@ -147,8 +146,6 @@ joined.world.map <- left_join(x=map.world,
   map.theme.small)
 ```
 
-
-
 ```{r fig.width=2, fig.height=2}
 (s_map_4 <- joined.world.map %>% 
   filter(africa == 1) %>% 
@@ -172,8 +169,13 @@ joined.world.map <- left_join(x=map.world,
 ```
 
 ```{r fig.width=3, fig.height=10}
-s_map_1 / s_map_2 / s_map_3 / s_map_4 / s_map_5
+(s_map_plot_grid <- s_map_1 / s_map_2 / s_map_3 / s_map_4 / s_map_5)
 ```
+
+```{r combined_cluster_map, include=TRUE, fig.height=6.2, fig.width=10, fig.align='center'}
+(l_map_clust + s_map_plot_grid + plot_layout(widths = c(8, 1, 1)))
+```
+
 
 ```{r}
 ggsave("map_cluster.png", plot = l_map_clust, height = 10, width = 10, family="Arial", device='png')
