@@ -11,6 +11,13 @@ library(sf)
 #library(rnaturalearth)
 library(maps)
 library(viridis)
+library(patchwork)
+```
+
+Read in the cluster analysis results from Part One.
+
+```{r read_kmeans_viz_data, include=TRUE, echo=FALSE, message=FALSE}
+kmeans_viz_data <- read_csv('.//data/kmeans_viz_data.csv')
 ```
 
 Get the country polygons from the `sf::` package.
@@ -27,9 +34,10 @@ ggplot() +
   coord_sf(xlim = c(-30, 60),
             ylim = c(39, -37))
 ```
+Create custom map themes.
 
 ```{r map_themes, include=TRUE, echo=FALSE}
-map.theme <- theme(text = element_text(family = "Avenir-Book", color = "black"), 
+map.theme <- theme(text = element_text(family = "Arial", color = "black"), 
                    panel.background = element_rect(fill = "white"),
                    plot.background = element_rect(fill = "white"),
                    #panel.grid = element_blank(),
@@ -45,7 +53,7 @@ map.theme <- theme(text = element_text(family = "Avenir-Book", color = "black"),
                    legend.direction = "horizontal",
                    legend.background = element_rect(fill="white"))
 
-map.theme.small <- theme(text = element_text(family = "Avenir-Book", color = "black"), 
+map.theme.small <- theme(text = element_text(family = "Arial", color = "black"), 
                    panel.background = element_rect(fill = "white"),
                    plot.background = element_rect(fill = "white"),
                    panel.grid = element_blank(),
@@ -60,6 +68,8 @@ map.theme.small <- theme(text = element_text(family = "Avenir-Book", color = "bl
 ```
 
 # Mapping 
+
+Recode some country names to make `sf::` and the cluster results compatible.
 
 ```{r recode_cnty_names, include=TRUE, echo=FALSE}
 map.world <- map_data("world") %>% 
@@ -97,7 +107,7 @@ joined.world.map <- left_join(x=map.world,
   scale_fill_jco() + 
   map.theme + 
   guides(fill=guide_legend(nrow=2, byrow=TRUE)) + 
-  theme(legend.position = c(.04, .3)))
+  theme(legend.position.inside = c(.04, .3)))
 ```
 
 ```{r fig.width=2, fig.height=2}
@@ -162,19 +172,15 @@ joined.world.map <- left_join(x=map.world,
 ```
 
 ```{r fig.width=3, fig.height=10}
-s_map_plot_grid <- plot_grid(s_map_1, s_map_2, s_map_3, s_map_4, s_map_5, 
-                             ncol = 1,
-                             align = c('h', 'v'))
-
-s_map_plot_grid
+s_map_1 / s_map_2 / s_map_3 / s_map_4 / s_map_5
 ```
 
 ```{r}
-ggsave("map_cluster.png", plot = l_map_clust, height = 10, width = 10, family="Avenir-Book", device='png')
+ggsave("map_cluster.png", plot = l_map_clust, height = 10, width = 10, family="Arial", device='png')
 ```
 
 ```{r}
-ggsave("map_cluster_islands.png", plot = s_map_plot_grid, height = 10, width = 2, family="Avenir-Book", device='png')
+ggsave("map_cluster_islands.png", plot = s_map_plot_grid, height = 10, width = 2, family="Arial", device='png')
 ```
 
 # SDG maps 
@@ -229,8 +235,8 @@ binary_alpha <- c('Not achieved' = 1, 'Achieved' = 1)
   guides(fill = guide_legend(title.position = "top"),
          alpha = 'none') + 
   theme(legend.position = c(.04, .3)))
-    #legend.title = element_text(size=9, family = "Avenir-Book", color = "black"),
-        #legend.text = element_text(size=10, family = "Avenir-Book", color = "black")))
+    #legend.title = element_text(size=9, family = "Arial", color = "black"),
+        #legend.text = element_text(size=10, family = "Arial", color = "black")))
 ```
 
 
@@ -362,15 +368,15 @@ joined.world.map %>%
   map.theme + 
   guides(fill = guide_colorbar(title.position = "top")) + 
   theme(legend.position = c(.08, .3)))
-    #legend.title = element_text(size=9, family = "Avenir-Book", color = "black"),
-        #legend.text = element_text(size=10, family = "Avenir-Book", color = "black")))
+    #legend.title = element_text(size=9, family = "Arial", color = "black"),
+        #legend.text = element_text(size=10, family = "Arial", color = "black")))
 ```
 
 
 
 ```{r}
-#ggsave("map_test.pdf", plot = l_map, height = 20, width = 8, family="Avenir-Book", device=cairo_pdf)
-ggsave("map_maternal_2030.png", plot = l_map, height = 10, width = 10, family="Avenir-Book", device='png')
+#ggsave("map_test.pdf", plot = l_map, height = 20, width = 8, family="Arial", device=cairo_pdf)
+ggsave("map_maternal_2030.png", plot = l_map, height = 10, width = 10, family="Arial", device='png')
 ```
 
 
@@ -452,8 +458,8 @@ s_map_plot_grid
 ```
 
 ```{r}
-#ggsave("map_test.pdf", plot = l_map, height = 20, width = 8, family="Avenir-Book", device=cairo_pdf)
-ggsave("map_maternal_islands.png", plot = s_map_plot_grid, height = 10, width = 2, family="Avenir-Book", device='png')
+#ggsave("map_test.pdf", plot = l_map, height = 20, width = 8, family="Arial", device=cairo_pdf)
+ggsave("map_maternal_islands.png", plot = s_map_plot_grid, height = 10, width = 2, family="Arial", device='png')
 ```
 
 # Neonatal mortality map 
@@ -482,8 +488,8 @@ joined.world.map <- left_join(x=map.world,
 ```
 
 ```{r}
-#ggsave("map_test.pdf", plot = l_map, height = 20, width = 8, family="Avenir-Book", device=cairo_pdf)
-ggsave("map_neonatal_2030.png", plot = map_neonatal_afr, height = 10, width = 10, family="Avenir-Book", device='png')
+#ggsave("map_test.pdf", plot = l_map, height = 20, width = 8, family="Arial", device=cairo_pdf)
+ggsave("map_neonatal_2030.png", plot = map_neonatal_afr, height = 10, width = 10, family="Arial", device='png')
 ```
 
 ## Neonatal map: islands 
@@ -563,8 +569,8 @@ s_map_neonatal_plot_grid
 ```
 
 ```{r}
-#ggsave("map_test.pdf", plot = l_map, height = 20, width = 8, family="Avenir-Book", device=cairo_pdf)
-ggsave("map_neonatal_islands.png", plot = s_map_neonatal_plot_grid, height = 10, width = 2, family="Avenir-Book", device='png')
+#ggsave("map_test.pdf", plot = l_map, height = 20, width = 8, family="Arial", device=cairo_pdf)
+ggsave("map_neonatal_islands.png", plot = s_map_neonatal_plot_grid, height = 10, width = 2, family="Arial", device='png')
 ```
 
 # Under-5 mortality map 
@@ -593,8 +599,8 @@ joined.world.map <- left_join(x=map.world,
 ```
 
 ```{r}
-#ggsave("map_test.pdf", plot = l_map, height = 20, width = 8, family="Avenir-Book", device=cairo_pdf)
-ggsave("map_u5mr_2030.png", plot = map_u5mr_afr, height = 10, width = 10, family="Avenir-Book", device='png')
+#ggsave("map_test.pdf", plot = l_map, height = 20, width = 8, family="Arial", device=cairo_pdf)
+ggsave("map_u5mr_2030.png", plot = map_u5mr_afr, height = 10, width = 10, family="Arial", device='png')
 ```
 
 ## Neonatal map: islands 
@@ -674,8 +680,8 @@ s_map_u5mr_plot_grid
 ```
 
 ```{r}
-#ggsave("map_test.pdf", plot = l_map, height = 20, width = 8, family="Avenir-Book", device=cairo_pdf)
-ggsave("map_u5mr_islands.png", plot = s_map_u5mr_plot_grid, height = 10, width = 2, family="Avenir-Book", device='png')
+#ggsave("map_test.pdf", plot = l_map, height = 20, width = 8, family="Arial", device=cairo_pdf)
+ggsave("map_u5mr_islands.png", plot = s_map_u5mr_plot_grid, height = 10, width = 2, family="Arial", device='png')
 ```
 
 # Map of NCDs 
@@ -713,8 +719,8 @@ joined.world.map <- left_join(x=map.world,
 ```
 
 ```{r}
-#ggsave("map_test.pdf", plot = l_map, height = 20, width = 8, family="Avenir-Book", device=cairo_pdf)
-ggsave("map_ncds_2030.png", plot = map_ncds_afr, height = 10, width = 10, family="Avenir-Book", device='png')
+#ggsave("map_test.pdf", plot = l_map, height = 20, width = 8, family="Arial", device=cairo_pdf)
+ggsave("map_ncds_2030.png", plot = map_ncds_afr, height = 10, width = 10, family="Arial", device='png')
 ```
 
 ## Neonatal map: islands 
@@ -794,8 +800,8 @@ s_map_ncds_plot_grid
 ```
 
 ```{r}
-#ggsave("map_test.pdf", plot = l_map, height = 20, width = 8, family="Avenir-Book", device=cairo_pdf)
-ggsave("map_ncds_islands.png", plot = s_map_ncds_plot_grid, height = 10, width = 2, family="Avenir-Book", device='png')
+#ggsave("map_test.pdf", plot = l_map, height = 20, width = 8, family="Arial", device=cairo_pdf)
+ggsave("map_ncds_islands.png", plot = s_map_ncds_plot_grid, height = 10, width = 2, family="Arial", device='png')
 ```
 
 
@@ -827,8 +833,8 @@ joined.world.map <- left_join(x=map.world,
 ```
 
 ```{r}
-#ggsave("map_test.pdf", plot = l_map, height = 20, width = 8, family="Avenir-Book", device=cairo_pdf)
-ggsave("map_traff_2030.png", plot = map_traff_afr, height = 10, width = 10, family="Avenir-Book", device='png')
+#ggsave("map_test.pdf", plot = l_map, height = 20, width = 8, family="Arial", device=cairo_pdf)
+ggsave("map_traff_2030.png", plot = map_traff_afr, height = 10, width = 10, family="Arial", device='png')
 ```
 
 ## Neonatal map: islands 
@@ -908,8 +914,8 @@ s_map_traff_plot_grid
 ```
 
 ```{r}
-#ggsave("map_test.pdf", plot = l_map, height = 20, width = 8, family="Avenir-Book", device=cairo_pdf)
-ggsave("map_traff_islands.png", plot = s_map_traff_plot_grid, height = 10, width = 2, family="Avenir-Book", device='png')
+#ggsave("map_test.pdf", plot = l_map, height = 20, width = 8, family="Arial", device=cairo_pdf)
+ggsave("map_traff_islands.png", plot = s_map_traff_plot_grid, height = 10, width = 2, family="Arial", device='png')
 ```
 
 
@@ -948,8 +954,8 @@ joined.world.map <- left_join(x=map.world,
 ```
 
 ```{r}
-#ggsave("map_test.pdf", plot = l_map, height = 20, width = 8, family="Avenir-Book", device=cairo_pdf)
-ggsave("map_malaria_2030.png", plot = map_malaria_dr_afr, height = 10, width = 10, family="Avenir-Book", device='png')
+#ggsave("map_test.pdf", plot = l_map, height = 20, width = 8, family="Arial", device=cairo_pdf)
+ggsave("map_malaria_2030.png", plot = map_malaria_dr_afr, height = 10, width = 10, family="Arial", device='png')
 ```
 
 ## Neonatal map: islands 
@@ -1029,8 +1035,8 @@ s_map_malaria_plot_grid
 ```
 
 ```{r}
-#ggsave("map_test.pdf", plot = l_map, height = 20, width = 8, family="Avenir-Book", device=cairo_pdf)
-ggsave("map_malaria_islands.png", plot = s_map_malaria_plot_grid, height = 10, width = 2, family="Avenir-Book", device='png')
+#ggsave("map_test.pdf", plot = l_map, height = 20, width = 8, family="Arial", device=cairo_pdf)
+ggsave("map_malaria_islands.png", plot = s_map_malaria_plot_grid, height = 10, width = 2, family="Arial", device='png')
 ```
 
 
@@ -1065,8 +1071,8 @@ joined.world.map <- left_join(x=map.world,
 ```
 
 ```{r}
-#ggsave("map_test.pdf", plot = l_map, height = 20, width = 8, family="Avenir-Book", device=cairo_pdf)
-ggsave("map_aids_2030.png", plot = map_aids_dr_afr, height = 10, width = 10, family="Avenir-Book", device='png')
+#ggsave("map_test.pdf", plot = l_map, height = 20, width = 8, family="Arial", device=cairo_pdf)
+ggsave("map_aids_2030.png", plot = map_aids_dr_afr, height = 10, width = 10, family="Arial", device='png')
 ```
 
 ## Neonatal map: islands 
@@ -1146,8 +1152,8 @@ s_map_aids_plot_grid
 ```
 
 ```{r}
-#ggsave("map_test.pdf", plot = l_map, height = 20, width = 8, family="Avenir-Book", device=cairo_pdf)
-ggsave("map_aids_islands.png", plot = s_map_aids_plot_grid, height = 10, width = 2, family="Avenir-Book", device='png')
+#ggsave("map_test.pdf", plot = l_map, height = 20, width = 8, family="Arial", device=cairo_pdf)
+ggsave("map_aids_islands.png", plot = s_map_aids_plot_grid, height = 10, width = 2, family="Arial", device='png')
 ```
 
 
