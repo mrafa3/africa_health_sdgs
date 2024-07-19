@@ -225,10 +225,10 @@ spotlight <- c('Rwanda', 'Congo, Democratic Republic of', 'Kenya', 'Algeria', 'S
 
 ```{r}
 (kmeans_viz_data <- kmeans_viz_data %>% 
-  mutate(clust_name = case_when(cluster == '1' ~ 'CDs',
-                                cluster == '2' ~ 'NCDs',
-                                cluster == '3' ~ 'NCDs & HIV',
-                                cluster == '4' ~ 'Double Burden'),
+  mutate(clust_name = case_when(cluster == '1' ~ 'NCDs',
+                                cluster == '2' ~ 'NCDs & HIV',
+                                cluster == '3' ~ 'Double Burden',
+                                cluster == '4' ~ 'CDs'),
          africa = '1'))
 ```
 
