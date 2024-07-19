@@ -13,12 +13,6 @@ library(extrafont)
 ```
 
 ```{r}
-excl_groups <- c('Afr - Fragile Health', 'Afr - Middling Health', 'Afr - HIV Burden', 'Afr - Imp Health',
-                 'Africa', 'AFP Central Africa', 'AFP Southern Africa', 'AFP Western Africa', 
-                 'AFP Northern Africa', 'AFP East/Horn Africa')
-```
-
-```{r}
 (df_master <- readxl::read_xlsx('.//data/IFs_results_02apr2019.xlsx', sheet='update_10apr2019') %>% 
    filter(scenario == '00CP_adj_ADB') %>% 
    select(1:5, `2015`, `2020`, `2030`, `2063`))
