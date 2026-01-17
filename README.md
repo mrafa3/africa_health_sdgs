@@ -12,4 +12,4 @@ This repository contain code for the analysis contained in the report *The futur
 | [SDG3_distance.Rmd](SDG3_distance.Rmd) | Code for developing a distance index for African countries toward SDG3 achievement. | ... | 
 | [SDG_distance_percent.Rmd](SDG_distance_percent.Rmd) | Code for evaluating and visualizing distance as a percent (instead of as a standard deviation score). | ... | 
 
-[Map of country-level cluster analysis of health outcomes](cluster_map.png)
+![Map of country-level cluster analysis of health outcomes](cluster_map.png)
