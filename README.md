@@ -11,3 +11,5 @@ This repository contain code for the analysis contained in the report *The futur
 | [SDG3_cluster.Rmd](SDG3_cluster.Rmd) | Code for cluster analysis of African health outcomes. Includes knn analysis of cluster graduation (using forecasts from IFs) and some exploratory PCA. | ... | 
 | [SDG3_distance.Rmd](SDG3_distance.Rmd) | Code for developing a distance index for African countries toward SDG3 achievement. | ... | 
 | [SDG_distance_percent.Rmd](SDG_distance_percent.Rmd) | Code for evaluating and visualizing distance as a percent (instead of as a standard deviation score). | ... | 
+
+[Map of country-level cluster analysis of health outcomes](cluster_map.png)
